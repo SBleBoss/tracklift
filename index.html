@@ -151,14 +151,8 @@ footer{text-align:center;padding:16px;color:#222;font-size:11px;letter-spacing:1
 <div class="toast" id="toast"></div>
 
 <script>
-// ─────────────────────────────────────────
-// CONFIG — nouvelle URL Apps Script
-// ─────────────────────────────────────────
 const API = "https://script.google.com/macros/s/AKfycby5CnTcdwnMBhDo2fAgmfPHRlVmqyHOAQcghiu3yW-i98owaV2vwP7Wru1R09UF5sAF/exec";
 
-// ─────────────────────────────────────────
-// DEFAULT DATA
-// ─────────────────────────────────────────
 const DEFAULT_EXOS = {
   push:[
     {id:"p1",name:"Développé couché barre",    ds:4,reps:"8–10", target:"50–70 kg"},
@@ -186,11 +180,8 @@ const DEFAULT_EXOS = {
   ],
 };
 
-// ─────────────────────────────────────────
-// STATE
-// ─────────────────────────────────────────
-let exos    = JSON.parse(JSON.stringify(DEFAULT_EXOS));
-let live    = {};
+let exos = JSON.parse(JSON.stringify(DEFAULT_EXOS));
+let live = {};
 let history = [];
 let modalCtx = null;
 let histFilter = "all";
@@ -207,41 +198,39 @@ function initLive() {
   });
 }
 
-// ─────────────────────────────────────────
-// GOOGLE SHEETS SYNC
-// Two-step approach to handle CORS:
-//   GET  → fetch with regular mode (GAS handles CORS on GET)
-//   POST → fetch with no-cors (fire-and-forget, no response body)
-//         then verify with a follow-up GET
-// ─────────────────────────────────────────
-function setSyncUI(state, label) {
-  const dot = document.getElementById("syncDot");
-  const lbl = document.getElementById("syncLabel");
-  dot.className = "sync-dot " + state;
-  lbl.textContent = label;
-}
-
-// GET data from Google Sheets
+// ── GOOGLE SHEETS API ──
+// Utilise uniquement des requêtes GET avec redirect:follow
+// pour contourner les problèmes CORS de Google Apps Script
 async function gsGet(key) {
   const url = `${API}?key=${encodeURIComponent(key)}&t=${Date.now()}`;
-  const res = await fetch(url, { method:"GET" });
-  const json = await res.json();
+  const res = await fetch(url, {
+    method: "GET",
+    redirect: "follow",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  const json = JSON.parse(text);
   return json.value ? JSON.parse(json.value) : null;
 }
 
-// POST data to Google Sheets
-// GAS with no-cors: we send the data as a query param on a GET request
-// This avoids CORS preflight entirely
 async function gsSet(key, value) {
+  // Passe les données en GET param pour éviter le preflight CORS
   const encoded = encodeURIComponent(JSON.stringify(value));
-  // Use a GET request with action=set to bypass CORS preflight
   const url = `${API}?action=set&key=${encodeURIComponent(key)}&value=${encoded}&t=${Date.now()}`;
-  await fetch(url, { method:"GET" });
+  const res = await fetch(url, {
+    method: "GET",
+    redirect: "follow",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
-// Pull latest data from Sheets → update local state
+function setSyncUI(state, label) {
+  document.getElementById("syncDot").className = "sync-dot " + state;
+  document.getElementById("syncLabel").textContent = label;
+}
+
 async function syncPull() {
-  setSyncUI("syncing","Synchronisation...");
+  setSyncUI("syncing", "Synchronisation...");
   try {
     const [remExos, remHist] = await Promise.all([
       gsGet("tl_exos"),
@@ -249,36 +238,29 @@ async function syncPull() {
     ]);
     if (remExos) exos = remExos;
     if (remHist) history = remHist;
-    // Save locally too
     localStorage.setItem("tl_exos", JSON.stringify(exos));
     localStorage.setItem("tl_hist", JSON.stringify(history));
     initLive();
     renderAll();
-    const t = new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-    setSyncUI("ok", `Synchronisé à ${t}`);
+    setSyncUI("ok", "Synchronisé · " + new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}));
   } catch(err) {
-    console.warn("Sync pull failed:", err);
-    setSyncUI("error","Erreur — données locales utilisées");
+    console.error("Sync pull failed:", err);
+    setSyncUI("error", "Erreur sync — " + err.message);
     loadLocal();
   }
 }
 
-// Push local state to Sheets
 async function syncPush() {
-  setSyncUI("syncing","Sauvegarde...");
-  // Always save locally first
   localStorage.setItem("tl_exos", JSON.stringify(exos));
   localStorage.setItem("tl_hist", JSON.stringify(history));
+  setSyncUI("syncing", "Sauvegarde...");
   try {
-    await Promise.all([
-      gsSet("tl_exos", exos),
-      gsSet("tl_hist", history),
-    ]);
-    const t = new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-    setSyncUI("ok", `Synchronisé à ${t}`);
+    await gsSet("tl_exos", exos);
+    await gsSet("tl_hist", history);
+    setSyncUI("ok", "Synchronisé · " + new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}));
   } catch(err) {
-    console.warn("Sync push failed:", err);
-    setSyncUI("error","Sauvegardé localement (sync échoué)");
+    console.error("Sync push failed:", err);
+    setSyncUI("error", "Sauvegardé localement (sync échoué)");
   }
 }
 
@@ -293,9 +275,6 @@ function loadLocal() {
   renderAll();
 }
 
-// ─────────────────────────────────────────
-// BEST WEIGHT
-// ─────────────────────────────────────────
 function getBest(session, exoName) {
   let b = 0;
   history.filter(e=>e.session===session).forEach(e=>{
@@ -306,9 +285,6 @@ function getBest(session, exoName) {
   return b;
 }
 
-// ─────────────────────────────────────────
-// RENDER
-// ─────────────────────────────────────────
 function renderAll() {
   ["push","pull","legs"].forEach(renderSession);
   renderHistory();
@@ -433,9 +409,6 @@ function toggleCard(exoId) {
   document.getElementById(`card-${exoId}`)?.classList.toggle("open");
 }
 
-// ─────────────────────────────────────────
-// SAVE SESSION
-// ─────────────────────────────────────────
 async function saveSession(session) {
   const result=[];
   (exos[session]||[]).forEach(exo=>{
@@ -444,11 +417,10 @@ async function saveSession(session) {
   });
   if (!result.length) { showToast("⚠️ Aucune donnée saisie"); return; }
   history.unshift({id:Date.now(),session,date:fmtDate(),week:getWeek(),exercises:result});
-  showToast("💾 Enregistrement...");
   await syncPush();
   renderHistory();
   updateStats();
-  showToast("✅ Séance enregistrée et synchronisée !");
+  showToast("✅ Séance enregistrée !");
 }
 
 function clearSession(session) {
@@ -457,23 +429,21 @@ function clearSession(session) {
   showToast("🗑️ Séance effacée");
 }
 
-// ─────────────────────────────────────────
-// HISTORY
-// ─────────────────────────────────────────
+let histFilter2 = "all";
 function setFilter(f) {
-  histFilter=f;
+  histFilter2=f;
   document.querySelectorAll(".filter-btn").forEach(b=>b.classList.toggle("active",b.dataset.f===f));
   renderHistory();
 }
 
 function renderHistory() {
   const panel   = document.getElementById("panel-history");
-  const entries = histFilter==="all" ? history : history.filter(e=>e.session===histFilter);
+  const entries = histFilter2==="all" ? history : history.filter(e=>e.session===histFilter2);
   const groups  = {};
   entries.forEach(e=>{ const k=`Semaine ${e.week}`; (groups[k]||(groups[k]=[])).push(e); });
 
   const filters = [["all","Tout"],["push","🔴 Push"],["pull","🔵 Pull"],["legs","🟢 Legs"]]
-    .map(([f,l])=>`<button class="filter-btn${histFilter===f?" active":""}" data-f="${f}" onclick="setFilter('${f}')">${l}</button>`).join("");
+    .map(([f,l])=>`<button class="filter-btn${histFilter2===f?" active":""}" data-f="${f}" onclick="setFilter('${f}')">${l}</button>`).join("");
 
   let html = `<div class="hist-title">📋 HISTORIQUE</div><div class="filter-bar">${filters}</div>`;
 
@@ -531,9 +501,6 @@ async function delEntry(id) {
   showToast("🗑️ Séance supprimée");
 }
 
-// ─────────────────────────────────────────
-// MODAL
-// ─────────────────────────────────────────
 function openModal(session,idx) {
   modalCtx = {session,idx};
   const isEdit = idx!==null;
@@ -576,36 +543,32 @@ function confirmModal() {
   renderSession(session);
 }
 
-// ─────────────────────────────────────────
-// TABS / STATS / TOAST
-// ─────────────────────────────────────────
 function switchTab(t) {
   document.querySelectorAll(".tab").forEach(el=>el.classList.toggle("active",el.dataset.s===t));
   document.querySelectorAll(".panel").forEach(el=>el.classList.toggle("active",el.id===`panel-${t}`));
   if (t==="history") renderHistory();
 }
+
 function updateStats() {
   const w = getWeek();
   document.getElementById("stat-total").textContent = history.length;
   document.getElementById("stat-week").textContent  = history.filter(e=>e.week===w).length;
   document.getElementById("stat-wnum").textContent  = `S${w}`;
 }
+
 function showToast(msg) {
   const t = document.getElementById("toast");
   t.textContent=msg; t.classList.add("show");
   setTimeout(()=>t.classList.remove("show"),2500);
 }
-document.getElementById("modal").addEventListener("click",e=>{ if(e.target===document.getElementById("modal")) closeModal(); });
 
-// ─────────────────────────────────────────
-// INIT — load local first, then sync
-// ─────────────────────────────────────────
-(function init() {
-  // 1. Render immediately from localStorage (instant UX)
-  loadLocal();
-  // 2. Then pull fresh data from Google Sheets
-  syncPull();
-})();
+document.getElementById("modal").addEventListener("click",e=>{
+  if(e.target===document.getElementById("modal")) closeModal();
+});
+
+// Init : local d'abord puis sync
+loadLocal();
+syncPull();
 </script>
 </body>
 </html>
