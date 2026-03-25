@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRACK.LIFT</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0a0a; --s1:#111; --s2:#1a1a1a; --s3:#222; --border:#2a2a2a;
+  --push:#ff4d2e; --pull:#3b9eff; --legs:#2ecc71; --gold:#f5c518;
+  --text:#f0f0f0; --muted:#666;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:14px;min-height:100vh;}
+header{padding:22px 16px 0;}
+.logo{font-family:'Bebas Neue',Impact,sans-serif;font-size:46px;letter-spacing:3px;line-height:1;}
+.logo span{color:var(--push);}
+.week-pill{background:var(--s2);border:1px solid var(--border);border-radius:40px;padding:6px 14px;font-size:12px;color:var(--muted);}
+.week-pill strong{color:var(--text);}
+.divider{height:1px;background:var(--border);margin:14px 16px 0;}
+.sync-bar{display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:12px;color:var(--muted);}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s;}
+.sync-dot.ok{background:var(--legs);}
+.sync-dot.syncing{background:var(--gold);animation:pulse .8s infinite;}
+.sync-dot.error{background:var(--push);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.tabs{display:flex;gap:3px;padding:14px 16px 0;}
+.tab{flex:1;padding:10px 4px;border-radius:10px 10px 0 0;border:1px solid var(--border);border-bottom:none;background:var(--s1);cursor:pointer;text-align:center;font-family:'Bebas Neue',Impact,sans-serif;font-size:16px;letter-spacing:2px;color:var(--muted);transition:all .2s;user-select:none;}
+.tab .day{display:block;font-family:'DM Sans',system-ui;font-size:9px;letter-spacing:.5px;margin-top:2px;opacity:.5;text-transform:uppercase;}
+.tab.active[data-s=push]{color:var(--push);background:#180d0a;border-color:var(--push);}
+.tab.active[data-s=pull]{color:var(--pull);background:#0a1220;border-color:var(--pull);}
+.tab.active[data-s=legs]{color:var(--legs);background:#0a1810;border-color:var(--legs);}
+.tab.active[data-s=history]{color:var(--gold);background:#181200;border-color:var(--gold);}
+.tab:hover:not(.active){color:var(--text);background:var(--s2);}
+.box{background:var(--s1);border:1px solid var(--border);border-top:none;margin:0 16px;border-radius:0 0 14px 14px;padding:16px;}
+.panel{display:none;}.panel.active{display:block;}
+.session-hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+.session-title{font-family:'Bebas Neue',Impact,sans-serif;font-size:21px;letter-spacing:2px;}
+.btn-ghost{background:var(--s2);border:1px solid var(--border);color:var(--muted);padding:8px 13px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;transition:all .15s;}
+.btn-ghost:hover{border-color:#555;color:var(--text);}
+.btn-save{flex:1;padding:12px 8px;border:none;border-radius:10px;font-family:'Bebas Neue',Impact,sans-serif;font-size:17px;letter-spacing:2px;cursor:pointer;}
+.btn-clear{padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:none;color:var(--muted);font-size:12px;cursor:pointer;}
+.btn-add-exo{width:100%;margin-top:6px;padding:11px;border:1px dashed var(--border);border-radius:10px;background:none;color:var(--muted);font-size:13px;cursor:pointer;}
+.exo-card{background:var(--s2);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;}
+.exo-card-hdr{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;user-select:none;}
+.exo-icon{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.exo-name{font-weight:600;font-size:13px;}
+.exo-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.exo-best{color:var(--gold);}
+.btn-icon{background:none;border:1px solid transparent;border-radius:6px;color:var(--muted);cursor:pointer;font-size:13px;padding:3px 6px;}
+.chevron{font-size:11px;color:var(--muted);transition:transform .2s;}
+.exo-card.open .chevron{transform:rotate(180deg);}
+.sets-panel{display:none;padding:0 13px 13px;}
+.exo-card.open .sets-panel{display:block;}
+.sets-table{width:100%;border-collapse:collapse;font-size:13px;}
+.sets-table th{text-align:left;padding:4px 5px;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);font-weight:500;}
+.sets-table td{padding:5px 5px;border-bottom:1px solid #1e1e1e;vertical-align:middle;}
+.set-num{font-family:'Bebas Neue',Impact,sans-serif;font-size:15px;color:var(--muted);width:22px;}
+.set-input{background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',system-ui;font-size:13px;font-weight:600;padding:5px 6px;width:58px;text-align:center;-moz-appearance:textfield;}
+.set-input::-webkit-outer-spin-button,.set-input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.set-input:focus{outline:none;border-color:#555;}
+.set-input.pr{border-color:var(--gold);color:var(--gold);}
+.pr-tag{background:rgba(245,197,24,.15);color:var(--gold);border-radius:4px;padding:2px 5px;font-size:10px;font-weight:700;}
+.del-set-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 5px;}
+.btn-add-set{background:none;border:1px dashed var(--border);border-radius:6px;color:var(--muted);font-size:12px;padding:6px;cursor:pointer;width:100%;margin-top:8px;}
+.save-bar{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+.stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 16px 0;}
+.stat-card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;}
+.stat-val{font-family:'Bebas Neue',Impact,sans-serif;font-size:30px;line-height:1;margin-bottom:3px;}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:500;}
+.hist-title{font-family:'Bebas Neue',Impact,sans-serif;font-size:24px;letter-spacing:2px;color:var(--gold);margin-bottom:12px;}
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.filter-btn{padding:5px 13px;border-radius:20px;border:1px solid var(--border);background:none;color:var(--muted);font-size:12px;cursor:pointer;}
+.filter-btn.active{border-color:var(--gold);color:var(--gold);background:rgba(245,197,24,.08);}
+.h-group-lbl{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.h-card{background:var(--s2);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;}
+.h-card-hdr{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;cursor:pointer;}
+.h-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.h-card-detail{display:none;padding:0 13px 13px;}
+.h-card.open .h-card-detail{display:block;}
+.h-exo-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1e1e1e;font-size:12px;flex-wrap:wrap;gap:6px;}
+.h-exo-row:last-child{border:none;}
+.h-set-chip{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 7px;font-size:11px;color:var(--muted);font-weight:500;}
+.h-set-chip.best{border-color:rgba(245,197,24,.4);color:var(--gold);}
+.h-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px;}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:100;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:22px;width:100%;max-width:380px;}
+.modal-title{font-family:'Bebas Neue',Impact,sans-serif;font-size:22px;letter-spacing:2px;margin-bottom:16px;}
+.field{margin-bottom:13px;}
+.field label{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:500;margin-bottom:5px;}
+.field input{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',system-ui;font-size:14px;padding:9px 11px;outline:none;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(50px);background:var(--s2);border:1px solid var(--border);border-radius:40px;padding:8px 18px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+footer{text-align:center;padding:16px;color:#222;font-size:11px;letter-spacing:1px;text-transform:uppercase;}
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+    <div class="logo">TRACK<span>.</span>LIFT</div>
+    <div class="week-pill">Semaine <strong id="weekNum">—</strong></div>
+  </div>
+</header>
+<div class="divider"></div>
+
+<div class="sync-bar">
+  <div class="sync-dot syncing" id="syncDot"></div>
+  <span id="syncLabel">Connexion à Google Sheets...</span>
+  <button class="btn-ghost" style="margin-left:auto;padding:5px 11px;font-size:11px;" onclick="syncPull()">↻ Sync</button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-s="push" onclick="switchTab('push')">🔴 PUSH<span class="day">Lundi</span></div>
+  <div class="tab" data-s="pull" onclick="switchTab('pull')">🔵 PULL<span class="day">Mercredi</span></div>
+  <div class="tab" data-s="legs" onclick="switchTab('legs')">🟢 LEGS<span class="day">Vendredi</span></div>
+  <div class="tab" data-s="history" onclick="switchTab('history')">📋 HIST.<span class="day">Tout</span></div>
+</div>
+
+<div class="box">
+  <div class="panel active" id="panel-push"></div>
+  <div class="panel" id="panel-pull"></div>
+  <div class="panel" id="panel-legs"></div>
+  <div class="panel" id="panel-history"></div>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-card"><div class="stat-val" id="stat-total" style="color:var(--gold)">0</div><div class="stat-lbl">Séances totales</div></div>
+  <div class="stat-card"><div class="stat-val" id="stat-week" style="color:var(--pull)">0</div><div class="stat-lbl">Cette semaine</div></div>
+  <div class="stat-card"><div class="stat-val" id="stat-wnum" style="color:var(--push)">S—</div><div class="stat-lbl">Semaine actuelle</div></div>
+</div>
+
+<footer>Track · Lift · Progress · Google Sheets Sync</footer>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">EXERCICE</div>
+    <div class="field"><label>Nom</label><input type="text" id="m-name" placeholder="ex: Squat barre"></div>
+    <div class="field"><label>Séries</label><input type="number" id="m-sets" value="3" min="1" max="10"></div>
+    <div class="field"><label>Reps cibles</label><input type="text" id="m-reps" placeholder="ex: 8–12"></div>
+    <div class="field"><label>Poids cible</label><input type="text" id="m-target" placeholder="ex: 50–70 kg"></div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn-save" id="modal-ok" onclick="confirmModal()" style="font-size:15px;flex:1;padding:12px;">CONFIRMER</button>
+      <button class="btn-clear" onclick="closeModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbzS1PHStqwMzKTsw724ZqDSQPYBMZ7x66BaLqYTPNX-QmBL5GIflY7TZ2hhWi9Dwq8/exec";
+
+const DEFAULT_EXOS = {
+  push:[
+    {id:"p1",name:"Développé couché barre",    ds:4,reps:"8–10", target:"50–70 kg"},
+    {id:"p2",name:"Développé incliné haltères",ds:3,reps:"10–12",target:"20–28 kg/côté"},
+    {id:"p3",name:"Élévations latérales",      ds:3,reps:"12–15",target:"8–14 kg/côté"},
+    {id:"p4",name:"Développé militaire",       ds:3,reps:"10–12",target:"30–45 kg"},
+    {id:"p5",name:"Dips",                      ds:3,reps:"10–12",target:"Poids corps"},
+    {id:"p6",name:"Extension triceps poulie",  ds:3,reps:"12–15",target:"20–30 kg"},
+  ],
+  pull:[
+    {id:"u1",name:"Tractions",               ds:4,reps:"6–10", target:"Poids corps"},
+    {id:"u2",name:"Rowing haltère",          ds:4,reps:"8–10", target:"22–30 kg/côté"},
+    {id:"u3",name:"Tirage vertical poulie",  ds:3,reps:"10–12",target:"45–60 kg"},
+    {id:"u4",name:"Pull au front poulie",    ds:3,reps:"12–15",target:"25–35 kg"},
+    {id:"u5",name:"Curl barre",              ds:3,reps:"10–12",target:"25–35 kg"},
+    {id:"u6",name:"Curl marteau",            ds:3,reps:"12–15",target:"12–16 kg/côté"},
+  ],
+  legs:[
+    {id:"l1",name:"Squat barre",             ds:4,reps:"8–10", target:"60–80 kg"},
+    {id:"l2",name:"Presse à cuisses",        ds:3,reps:"10–12",target:"80–120 kg"},
+    {id:"l3",name:"Fentes marchées haltères",ds:3,reps:"12/j", target:"16–22 kg/côté"},
+    {id:"l4",name:"Leg curl couché",         ds:3,reps:"12–15",target:"35–55 kg"},
+    {id:"l5",name:"Hip thrust",              ds:3,reps:"12–15",target:"50–70 kg"},
+    {id:"l6",name:"Mollets debout",          ds:4,reps:"15–20",target:"30–50 kg"},
+  ],
+};
+
+let exos = JSON.parse(JSON.stringify(DEFAULT_EXOS));
+let live = {};
+let history = [];
+let modalCtx = null;
+let histFilter = "all";
+
+const uid     = () => Math.random().toString(36).slice(2,8);
+const mkSets  = n  => Array.from({length:n},()=>({id:uid(),w:"",r:""}));
+const getWeek = () => { const d=new Date(),s=new Date(d.getFullYear(),0,1); return Math.ceil(((d-s)/86400000+s.getDay()+1)/7); };
+const fmtDate = () => new Date().toLocaleDateString("fr-FR",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
+const col     = s  => s==="push"?"#ff4d2e":s==="pull"?"#3b9eff":"#2ecc71";
+
+function initLive() {
+  Object.values(exos).flat().forEach(e=>{
+    if (!live[e.id]) live[e.id] = mkSets(e.ds);
+  });
+}
+
+// ── GOOGLE SHEETS API ──
+// Utilise uniquement des requêtes GET avec redirect:follow
+// pour contourner les problèmes CORS de Google Apps Script
+async function gsGet(key) {
+  const url = `${API}?key=${encodeURIComponent(key)}&t=${Date.now()}`;
+  const res = await fetch(url, {
+    method: "GET",
+    redirect: "follow",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  const json = JSON.parse(text);
+  return json.value ? JSON.parse(json.value) : null;
+}
+
+async function gsSet(key, value) {
+  // Passe les données en GET param pour éviter le preflight CORS
+  const encoded = encodeURIComponent(JSON.stringify(value));
+  const url = `${API}?action=set&key=${encodeURIComponent(key)}&value=${encoded}&t=${Date.now()}`;
+  const res = await fetch(url, {
+    method: "GET",
+    redirect: "follow",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+function setSyncUI(state, label) {
+  document.getElementById("syncDot").className = "sync-dot " + state;
+  document.getElementById("syncLabel").textContent = label;
+}
+
+async function syncPull() {
+  setSyncUI("syncing", "Synchronisation...");
+  try {
+    const [remExos, remHist] = await Promise.all([
+      gsGet("tl_exos"),
+      gsGet("tl_hist"),
+    ]);
+    if (remExos) exos = remExos;
+    if (remHist) history = remHist;
+    localStorage.setItem("tl_exos", JSON.stringify(exos));
+    localStorage.setItem("tl_hist", JSON.stringify(history));
+    initLive();
+    renderAll();
+    setSyncUI("ok", "Synchronisé · " + new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}));
+  } catch(err) {
+    console.error("Sync pull failed:", err);
+    setSyncUI("error", "Erreur sync — " + err.message);
+    loadLocal();
+  }
+}
+
+async function syncPush() {
+  localStorage.setItem("tl_exos", JSON.stringify(exos));
+  localStorage.setItem("tl_hist", JSON.stringify(history));
+  setSyncUI("syncing", "Sauvegarde...");
+  try {
+    await gsSet("tl_exos", exos);
+    await gsSet("tl_hist", history);
+    setSyncUI("ok", "Synchronisé · " + new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}));
+  } catch(err) {
+    console.error("Sync push failed:", err);
+    setSyncUI("error", "Sauvegardé localement (sync échoué)");
+  }
+}
+
+function loadLocal() {
+  try {
+    const le = localStorage.getItem("tl_exos");
+    const lh = localStorage.getItem("tl_hist");
+    if (le) exos = JSON.parse(le);
+    if (lh) history = JSON.parse(lh);
+  } catch {}
+  initLive();
+  renderAll();
+}
+
+function getBest(session, exoName) {
+  let b = 0;
+  history.filter(e=>e.session===session).forEach(e=>{
+    (e.exercises||[]).filter(x=>x.name===exoName).forEach(x=>{
+      (x.sets||[]).forEach(s=>{ const v=parseFloat(s.w); if(!isNaN(v)&&v>b) b=v; });
+    });
+  });
+  return b;
+}
+
+function renderAll() {
+  ["push","pull","legs"].forEach(renderSession);
+  renderHistory();
+  updateStats();
+  document.getElementById("weekNum").textContent = getWeek();
+}
+
+function renderSession(session) {
+  const c = col(session);
+  const sub = {push:"Poitrine · Épaules · Triceps",pull:"Dos · Biceps",legs:"Quadriceps · Ischio · Fessiers"};
+  const panel = document.getElementById(`panel-${session}`);
+  const list  = exos[session] || [];
+
+  let html = `
+    <div class="session-hdr">
+      <div class="session-title" style="color:${c}">${session.toUpperCase()} — ${sub[session]}</div>
+      <button class="btn-ghost" onclick="saveSession('${session}')">💾 Sauver</button>
+    </div>`;
+
+  list.forEach((exo,idx) => {
+    const best = getBest(session, exo.name);
+    const sets = live[exo.id] || [];
+    const ico  = exo.name.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2);
+    const rows = sets.map((set,i)=>{
+      const isPR = set.w!==""&&parseFloat(set.w)>best;
+      return `<tr>
+        <td class="set-num">${i+1}</td>
+        <td><input class="set-input${isPR?" pr":""}" type="number" placeholder="kg" value="${set.w}" step="0.5"
+          oninput="onSetInput('${exo.id}','${set.id}','w',this,'${session}',${idx})"></td>
+        <td><input class="set-input" type="number" placeholder="reps" value="${set.r}"
+          oninput="onSetInput('${exo.id}','${set.id}','r',this,'${session}',${idx})"></td>
+        <td id="prtd-${set.id}">${isPR?'<span class="pr-tag">PR!</span>':''}</td>
+        <td><button class="del-set-btn" onclick="delSet('${exo.id}','${set.id}','${session}',${idx})">✕</button></td>
+      </tr>`;
+    }).join("");
+
+    html += `
+      <div class="exo-card" id="card-${exo.id}">
+        <div class="exo-card-hdr" onclick="toggleCard('${exo.id}')">
+          <div class="exo-icon" style="background:${c}22;color:${c}">${ico}</div>
+          <div style="flex:1;min-width:0">
+            <div class="exo-name">${exo.name}</div>
+            <div class="exo-sub">${exo.ds}×${exo.reps} · ${exo.target}${best>0?` · <span class="exo-best">🏆 ${best} kg</span>`:""}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:5px">
+            <button class="btn-icon" onclick="event.stopPropagation();openModal('${session}',${idx})">✏️</button>
+            <button class="btn-icon" onclick="event.stopPropagation();delExo('${session}',${idx})">🗑️</button>
+            <span class="chevron">▼</span>
+          </div>
+        </div>
+        <div class="sets-panel">
+          <table class="sets-table">
+            <thead><tr><th>#</th><th>Poids</th><th>Reps</th><th></th><th></th></tr></thead>
+            <tbody id="tbody-${exo.id}">${rows}</tbody>
+          </table>
+          <button class="btn-add-set" onclick="addSet('${exo.id}','${session}',${idx})">＋ Ajouter une série</button>
+        </div>
+      </div>`;
+  });
+
+  html += `
+    <button class="btn-add-exo" onclick="openModal('${session}',null)">＋ Ajouter un exercice</button>
+    <div class="save-bar">
+      <button class="btn-save" style="background:${c};color:${session==="legs"?"#0a0a0a":"#fff"}"
+        onclick="saveSession('${session}')">ENREGISTRER LA SÉANCE</button>
+      <button class="btn-clear" onclick="clearSession('${session}')">Effacer</button>
+    </div>`;
+
+  panel.innerHTML = html;
+}
+
+function onSetInput(exoId,setId,field,input,session,idx) {
+  const s = (live[exoId]||[]).find(s=>s.id===setId);
+  if (s) s[field] = input.value;
+  if (field === "w") {
+    const best = getBest(session, exos[session][idx]?.name||"");
+    const isPR = input.value!==""&&parseFloat(input.value)>best;
+    input.classList.toggle("pr", isPR);
+    const td = document.getElementById(`prtd-${setId}`);
+    if (td) td.innerHTML = isPR ? '<span class="pr-tag">PR!</span>' : "";
+  }
+}
+
+function addSet(exoId,session,idx) {
+  if (!live[exoId]) live[exoId]=[];
+  const set = {id:uid(),w:"",r:""};
+  live[exoId].push(set);
+  const i = live[exoId].length-1;
+  const tbody = document.getElementById(`tbody-${exoId}`);
+  if (!tbody) return;
+  const tr = document.createElement("tr");
+  tr.innerHTML=`
+    <td class="set-num">${i+1}</td>
+    <td><input class="set-input" type="number" placeholder="kg" value="" step="0.5"
+      oninput="onSetInput('${exoId}','${set.id}','w',this,'${session}',${idx})"></td>
+    <td><input class="set-input" type="number" placeholder="reps" value=""
+      oninput="onSetInput('${exoId}','${set.id}','r',this,'${session}',${idx})"></td>
+    <td id="prtd-${set.id}"></td>
+    <td><button class="del-set-btn" onclick="delSet('${exoId}','${set.id}','${session}',${idx})">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function delSet(exoId,setId,session,idx) {
+  const arr = live[exoId]||[];
+  if (arr.length<=1) { showToast("⚠️ Minimum 1 série"); return; }
+  live[exoId] = arr.filter(s=>s.id!==setId);
+  const wasOpen = document.getElementById(`card-${exoId}`)?.classList.contains("open");
+  renderSession(session);
+  if (wasOpen) document.getElementById(`card-${exoId}`)?.classList.add("open");
+}
+
+function delExo(session,idx) {
+  if (!confirm(`Supprimer "${exos[session][idx].name}" ?`)) return;
+  const exo = exos[session][idx];
+  exos[session].splice(idx,1);
+  delete live[exo.id];
+  renderSession(session);
+  showToast("🗑️ Exercice supprimé");
+}
+
+function toggleCard(exoId) {
+  document.getElementById(`card-${exoId}`)?.classList.toggle("open");
+}
+
+async function saveSession(session) {
+  const result=[];
+  (exos[session]||[]).forEach(exo=>{
+    const sets=(live[exo.id]||[]).filter(s=>s.w||s.r).map(s=>({w:s.w||"—",r:s.r||"—"}));
+    if (sets.length) result.push({name:exo.name,sets});
+  });
+  if (!result.length) { showToast("⚠️ Aucune donnée saisie"); return; }
+  history.unshift({id:Date.now(),session,date:fmtDate(),week:getWeek(),exercises:result});
+  await syncPush();
+  renderHistory();
+  updateStats();
+  showToast("✅ Séance enregistrée !");
+}
+
+function clearSession(session) {
+  (exos[session]||[]).forEach(e=>{ live[e.id]=mkSets(e.ds); });
+  renderSession(session);
+  showToast("🗑️ Séance effacée");
+}
+
+let histFilter2 = "all";
+function setFilter(f) {
+  histFilter2=f;
+  document.querySelectorAll(".filter-btn").forEach(b=>b.classList.toggle("active",b.dataset.f===f));
+  renderHistory();
+}
+
+function renderHistory() {
+  const panel   = document.getElementById("panel-history");
+  const entries = histFilter2==="all" ? history : history.filter(e=>e.session===histFilter2);
+  const groups  = {};
+  entries.forEach(e=>{ const k=`Semaine ${e.week}`; (groups[k]||(groups[k]=[])).push(e); });
+
+  const filters = [["all","Tout"],["push","🔴 Push"],["pull","🔵 Pull"],["legs","🟢 Legs"]]
+    .map(([f,l])=>`<button class="filter-btn${histFilter2===f?" active":""}" data-f="${f}" onclick="setFilter('${f}')">${l}</button>`).join("");
+
+  let html = `<div class="hist-title">📋 HISTORIQUE</div><div class="filter-bar">${filters}</div>`;
+
+  if (!entries.length) {
+    html += `<div class="h-empty">Aucune séance.<br><span style="font-size:12px">Enregistre ta première séance !</span></div>`;
+  } else {
+    Object.entries(groups).forEach(([week,list])=>{
+      html += `<div style="margin-bottom:18px"><div class="h-group-lbl">${week}</div>`;
+      list.forEach(entry=>{
+        const c = col(entry.session);
+        const lbl = {push:"🔴 PUSH",pull:"🔵 PULL",legs:"🟢 LEGS"}[entry.session];
+        const totalSets = entry.exercises.reduce((a,e)=>a+e.sets.length,0);
+        const allW = entry.exercises.flatMap(e=>e.sets.map(s=>parseFloat(s.w))).filter(v=>!isNaN(v));
+        const bestW = allW.length?Math.max(...allW):0;
+        const detail = entry.exercises.map(exo=>{
+          const exoW = exo.sets.map(s=>parseFloat(s.w)).filter(v=>!isNaN(v));
+          const exoBest = exoW.length?Math.max(...exoW):0;
+          const chips = exo.sets.map(s=>{
+            const isB = parseFloat(s.w)===exoBest&&exoBest>0;
+            return `<span class="h-set-chip${isB?" best":""}">${s.w}kg×${s.r}</span>`;
+          }).join("");
+          return `<div class="h-exo-row"><span style="font-weight:500;flex:1;min-width:100px">${exo.name}</span><div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">${chips}</div></div>`;
+        }).join("");
+        html += `
+          <div class="h-card" id="hc-${entry.id}">
+            <div class="h-card-hdr" onclick="document.getElementById('hc-${entry.id}').classList.toggle('open')">
+              <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+                <div class="h-dot" style="background:${c}"></div>
+                <div>
+                  <div style="font-weight:600;font-size:13px">${lbl} · ${entry.date}</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:2px">${entry.exercises.length} exos · ${totalSets} séries${bestW>0?` · 🏆 ${bestW} kg`:""}</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-size:11px;color:var(--muted)">▼</span>
+                <button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:3px 6px"
+                  onclick="event.stopPropagation();delEntry(${entry.id})">✕</button>
+              </div>
+            </div>
+            <div class="h-card-detail">${detail}</div>
+          </div>`;
+      });
+      html += `</div>`;
+    });
+  }
+  panel.innerHTML = html;
+}
+
+async function delEntry(id) {
+  if (!confirm("Supprimer cette séance ?")) return;
+  history = history.filter(e=>e.id!==id);
+  await syncPush();
+  renderHistory();
+  updateStats();
+  showToast("🗑️ Séance supprimée");
+}
+
+function openModal(session,idx) {
+  modalCtx = {session,idx};
+  const isEdit = idx!==null;
+  document.getElementById("modal-title").textContent = isEdit?"MODIFIER L'EXERCICE":"NOUVEL EXERCICE";
+  const btn = document.getElementById("modal-ok");
+  btn.style.background = col(session);
+  btn.style.color = session==="legs"?"#0a0a0a":"#fff";
+  if (isEdit) {
+    const e = exos[session][idx];
+    document.getElementById("m-name").value   = e.name;
+    document.getElementById("m-sets").value   = e.ds;
+    document.getElementById("m-reps").value   = e.reps;
+    document.getElementById("m-target").value = e.target;
+  } else {
+    document.getElementById("m-name").value   = "";
+    document.getElementById("m-sets").value   = 3;
+    document.getElementById("m-reps").value   = "10–12";
+    document.getElementById("m-target").value = "";
+  }
+  document.getElementById("modal").classList.add("open");
+}
+function closeModal() { document.getElementById("modal").classList.remove("open"); }
+function confirmModal() {
+  const name = document.getElementById("m-name").value.trim();
+  if (!name) { showToast("⚠️ Nom requis"); return; }
+  const ds     = parseInt(document.getElementById("m-sets").value)||3;
+  const reps   = document.getElementById("m-reps").value||"10–12";
+  const target = document.getElementById("m-target").value||"—";
+  const {session,idx} = modalCtx;
+  if (idx===null) {
+    const newId = uid();
+    exos[session].push({id:newId,name,ds,reps,target});
+    live[newId] = mkSets(ds);
+    showToast("✅ Exercice ajouté");
+  } else {
+    exos[session][idx] = {...exos[session][idx],name,ds,reps,target};
+    showToast("✅ Exercice modifié");
+  }
+  closeModal();
+  renderSession(session);
+}
+
+function switchTab(t) {
+  document.querySelectorAll(".tab").forEach(el=>el.classList.toggle("active",el.dataset.s===t));
+  document.querySelectorAll(".panel").forEach(el=>el.classList.toggle("active",el.id===`panel-${t}`));
+  if (t==="history") renderHistory();
+}
+
+function updateStats() {
+  const w = getWeek();
+  document.getElementById("stat-total").textContent = history.length;
+  document.getElementById("stat-week").textContent  = history.filter(e=>e.week===w).length;
+  document.getElementById("stat-wnum").textContent  = `S${w}`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2500);
+}
+
+document.getElementById("modal").addEventListener("click",e=>{
+  if(e.target===document.getElementById("modal")) closeModal();
+});
+
+// Init : local d'abord puis sync
+loadLocal();
+syncPull();
+</script>
+</body>
+</html>
